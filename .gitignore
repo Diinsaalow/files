@@ -1,0 +1,15 @@
+# Scraped data — transfer separately, not via Git
+data/raw/
+data/final/
+data/checkpoints/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Conda / env
+*.egg-info/
+.env
