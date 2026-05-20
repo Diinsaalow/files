@@ -5,7 +5,7 @@ All category URL patterns and extraction rules per site.
 Categories: Siyaasad (Politics), Amni (Security), Caalamka (World)
 """
 
-CATEGORIES = ["siyaasad", "amni", "caalamka"]
+CATEGORIES = ["siyaasad", "amni", "caalamka", "ciyaaro"]
 
 CATEGORY_ALIASES = {
     "siyaasad": ["siyaasad", "politics", "political", "dowladda", "xukuumadda"],
@@ -36,6 +36,125 @@ SITES = {
 #     },
 # }
 
+"bbc_somali": {
+        "base_url": "https://www.bbc.com",
+        "categories": {
+            "ciyaaro": "https://www.bbc.com/somali/topics/cpzd4zj1pn2t",
+        },
+        "article_link_sel": (
+            "a[href*='/somali/sport'], "
+            "a[href*='/somali/articles'], "
+            "[data-testid='internal-link']"
+        ),
+        "title_sel": ["h1#main-heading", "h1[tabindex='-1']", "h1"],
+        "content_sel": ["[data-component='text-block'] p", "article p", "main p"],
+        "pagination": {"type": "query", "param": "page", "start": 1},
+        "delay": 2.5,
+        "js_render": False,
+    },
+
+    "laacibnet": {
+        "base_url": "https://www.laacibnet.net",
+        "categories": {
+            "ciyaaro": [
+                "https://www.laacibnet.net/category/wararka-ciyaaraha-maanta/",
+                "https://www.laacibnet.net/category/wararka-la-liga/",
+                "https://www.laacibnet.net/category/wararka-premier-league/",
+            ],
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a, .post-title a",
+        "title_sel": ["h1.entry-title", "h1"],
+        "content_sel": [".entry-content p", "article p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.0,
+        "js_render": False,
+    },
+    
+    "sonna": {
+        "base_url": "https://sonna.so",
+        "categories": {
+            "siyaasad": "https://sonna.so/so/category/siyaasad/",
+            "amni":     "https://sonna.so/so/category/amni/",
+            "caalamka": "https://sonna.so/so/category/caalamka/",
+            "ciyaaro":  "https://sonna.so/so/category/ciyaaraha/",
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a",
+        "title_sel":   ["h1.entry-title", "h1"],
+        "content_sel": [".entry-content p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.5,
+        "js_render": False,
+    },
+
+    "kooxda": {
+        "base_url": "https://kooxda.com",
+        "categories": {
+            "ciyaaro": [
+                "https://kooxda.com/category/wararka-ciyaaraha-maanta/",
+                "https://kooxda.com/category/wararka-horyaalka-ingiriiska/",
+                "https://kooxda.com/category/wararka-horyaalka-la-liga/",
+                "https://kooxda.com/category/wararka-suuqa-kala-iibsiga/",
+                "https://kooxda.com/category/wararka-horyaalka-serie-a/",
+                "https://kooxda.com/category/wararka-champions-league/",
+                "https://kooxda.com/category/wararka-horyaalka-ligue-1/",
+                "https://kooxda.com/category/warbixino/",
+            ],
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a",
+        "title_sel": ["h1.entry-title", "h1"],
+        "content_sel": [".entry-content p", "article p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.0,
+        "js_render": False,
+    },
+
+    "kooxdamanta": {
+        "base_url": "https://kooxdamanta.com",
+        "categories": {
+            "ciyaaro": "https://kooxdamanta.com/home/",
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a, .jeg_post_title a",
+        "title_sel": ["h1.entry-title", "h1.jeg_post_title", "h1"],
+        "content_sel": [".entry-content p", ".jeg_main_content p", "article p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.0,
+        "js_render": False,
+    },
+
+    "kubadlive": {
+        "base_url": "https://kubadlive.com",
+        "categories": {
+            "ciyaaro": [
+                # "https://kubadlive.com/category/news/",
+                "https://kubadlive.com/category/transfer/",
+                # "https://kubadlive.com/category/premier-leage/",
+                # "https://kubadlive.com/category/laliga/",
+                # "https://kubadlive.com/category/seria-a/",
+                # "https://kubadlive.com/category/champions-leage/",
+                # "https://kubadlive.com/category/world-cup/",
+            ],
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a",
+        "title_sel": ["h1.entry-title", "h1"],
+        "content_sel": [".entry-content p", "article p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.0,
+        "js_render": False,
+    },
+
+    "wararka24": {
+        "base_url": "https://wararka24.com",
+        "categories": {
+            "ciyaaro": "https://wararka24.com/category/ciyaaraha/",
+        },
+        "article_link_sel": "h2.entry-title a, h3.entry-title a",
+        "title_sel": ["h1.entry-title", "h1"],
+        "content_sel": [".entry-content p", "article p"],
+        "pagination": {"type": "path", "pattern": "page/{n}/"},
+        "delay": 2.0,
+        "js_render": False,
+    },
+
     "caasimada": {
         "base_url": "https://caasimada.net",
         "categories": {
@@ -57,6 +176,7 @@ SITES = {
         "siyaasad": "https://goobjoog.com/qayb/war/dalka/",
         "amni":     "https://goobjoog.com/qayb/amniga/",
         "caalamka": "https://goobjoog.com/qayb/war/caalamka/",
+        "ciyaaro": "https://goobjoog.com/qayb/cayaaraha/",
     },
     "article_link_sel": (
         ".jeg_post_title a, "
@@ -121,6 +241,8 @@ SITES = {
             "siyaasad": "https://mustaqbalmedia.net/category/siyaasad/",
             "amni":     "https://mustaqbalmedia.net/category/amni/",
             "caalamka": "https://mustaqbalmedia.net/category/caalamka/",
+            "ciyaaro": ["https://mustaqbalmedia.net/so/category/kubadda-cagta/","https://mustaqbalmedia.net/so/category/ciyaraha-2/",
+],
         },
         "article_link_sel": "h2.entry-title a, h3.entry-title a",
         "title_sel":   ["h1.entry-title", "h1"],
@@ -153,6 +275,7 @@ SITES = {
             "siyaasad": "https://www.garoweonline.com/so/category/siyaasad",
             "amni":     "https://www.garoweonline.com/so/category/amni",
             "caalamka": "https://www.garoweonline.com/so/category/caalamka",
+            "ciyaaro": "https://www.garoweonline.com/so/cayaaraha",
         },
         "article_link_sel": "h2 a, h3 a, .article-title a",
         "title_sel":   ["h1", ".article-title"],
@@ -245,6 +368,7 @@ SITES = {
             "siyaasad": "https://puntlandpost.net/category/siyaasad/",
             "amni":     "https://puntlandpost.net/category/amni/",
             "caalamka": "https://puntlandpost.net/category/caalamka/",
+            "ciyaaro": "https://puntlandpost.net/section/sports/",
         },
         "article_link_sel": "h2.entry-title a, h3.entry-title a",
         "title_sel":   ["h1.entry-title", "h1"],

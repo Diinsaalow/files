@@ -38,145 +38,142 @@ def scrape_site_category(
     max_pages:  int  = None,
     force_restart: bool = False,
 ) -> int:
-    """
-    Scrape all articles for one (site, category) pair.
-    Resumes from checkpoint automatically unless force_restart=True.
-
-    Returns the number of new articles written in this run.
-    """
     site_cfg = SITES.get(site_name)
     if not site_cfg:
         logger.error(f"Unknown site: {site_name}")
         return 0
 
-    cat_url = site_cfg["categories"].get(category)
-    if not cat_url:
+    cat_url_raw = site_cfg["categories"].get(category)
+    if not cat_url_raw:
         logger.warning(f"{site_name} has no URL configured for category '{category}'")
         return 0
 
+    # Support single URL or list of URLs
+    cat_urls = cat_url_raw if isinstance(cat_url_raw, list) else [cat_url_raw]
     max_pages = max_pages or CFG["max_pages_per_category"]
 
-    # ── Setup ──
     ckpt      = Checkpoint(site_name, category)
     writer    = RawWriter(site_name, category)
     dedup     = DedupCache(category)
     session   = make_session()
     delay     = site_cfg.get("delay", 2.0)
     link_sel  = site_cfg["article_link_sel"]
-    pagcfg    = site_cfg["pagination"]
 
     if force_restart:
         ckpt.delete()
         ckpt = Checkpoint(site_name, category)
 
-    start_page   = max(1, ckpt.last_page)    # resume from last checkpoint
-    scraped_urls = ckpt.scraped_urls
-    new_count    = 0
+    # Auto-reset stale checkpoint
+    if ckpt.last_page > 1 and ckpt.article_count == 0 and writer.count == 0:
+        logger.warning(f"  [{site_name}][{category}] Stale checkpoint — resetting.")
+        ckpt.delete()
+        ckpt = Checkpoint(site_name, category)
 
-    # ADD: sync count from writer if checkpoint was wiped but CSV still has data
+    # Sync count if checkpoint was wiped but CSV still has data
     if ckpt.article_count == 0 and writer.count > 0:
         ckpt.article_count = writer.count
         ckpt.save()
 
+    scraped_urls = ckpt.scraped_urls
+    new_count    = 0
+
     logger.info(
         f"▶ [{site_name}] [{category}] "
-        f"Starting at page {start_page} | "
+        f"{len(cat_urls)} URL(s) | "
         f"checkpoint: {ckpt.article_count} | writer: {writer.count}"
     )
 
-    # ── Pagination loop ───────────────────────────────────────────────────────
-    for page_num in range(start_page, max_pages + 1):
+    # ── Loop through each category URL ───────────────────────────────────────
+    for url_idx, cat_url in enumerate(cat_urls):
 
-        # Stop if target already reached across all sites
         if ckpt.article_count >= target:
-            logger.info(f"  [{site_name}][{category}] Target reached. Stopping.")
             break
 
-        page_url = get_page_url(cat_url, page_num, pagcfg)
-        logger.debug(f"  Fetching listing page {page_num}: {page_url}")
+        # Resume: skip URLs already completed in a previous run
+        if url_idx < ckpt.url_index:
+            logger.info(f"  Skipping URL {url_idx+1}/{len(cat_urls)} (already completed)")
+            continue
 
-        soup = fetch(page_url, session)
+        # When moving to a new URL, start from page 1
+        start_page = ckpt.last_page if url_idx == ckpt.url_index else 1
+        pagcfg     = site_cfg["pagination"]
 
-        if soup is None or is_empty_listing(soup, link_sel, site_cfg["base_url"]):
-            logger.info(f"  [{site_name}][{category}] Empty/unreachable page {page_num}. End of pagination.")
-            break
+        logger.info(f"  URL {url_idx+1}/{len(cat_urls)}: {cat_url}")
 
-        article_links = extract_article_links(soup, site_cfg["base_url"], link_sel, scraped_urls)
-
-        if not article_links:
-            logger.info(f"  [{site_name}][{category}] No new links on page {page_num}. Stopping.")
-            break
-
-        logger.info(f"  [{site_name}][{category}] Page {page_num}: {len(article_links)} links found")
-
-        # ── Article loop ──────────────────────────────────────────────────────
-        for url in article_links:
+        # ── Pagination loop ───────────────────────────────────────────────────
+        for page_num in range(start_page, max_pages + 1):
 
             if ckpt.article_count >= target:
                 break
 
-            if url in scraped_urls:
-                continue
+            page_url = get_page_url(cat_url, page_num, pagcfg)
+            logger.debug(f"    Fetching page {page_num}: {page_url}")
 
-            polite_sleep(delay, jitter=0.8)
-            art_soup = fetch(url, session)
+            soup = fetch(page_url, session)
 
-            if art_soup is None:
+            if soup is None or is_empty_listing(soup, link_sel, site_cfg["base_url"]):
+                logger.info(f"  [{site_name}][{category}] End of pages for URL {url_idx+1} at page {page_num}.")
+                break
+
+            article_links = extract_article_links(
+                soup, site_cfg["base_url"], link_sel, scraped_urls
+            )
+
+            if not article_links:
+                logger.info(f"  No new links on page {page_num}. Moving on.")
+                break
+
+            logger.info(f"  [{site_name}][{category}] URL {url_idx+1} Page {page_num}: {len(article_links)} links")
+
+            for url in article_links:
+                if ckpt.article_count >= target:
+                    break
+                if url in scraped_urls:
+                    continue
+
+                polite_sleep(delay, jitter=0.8)
+                art_soup = fetch(url, session)
+
+                if art_soup is None:
+                    ckpt.mark_url(url); scraped_urls.add(url)
+                    continue
+
+                article = extract_article(art_soup, url, site_cfg)
+
+                if article is None:
+                    ckpt.mark_url(url); scraped_urls.add(url)
+                    continue
+
+                if dedup.is_duplicate(article["title"]):
+                    ckpt.mark_url(url); scraped_urls.add(url)
+                    continue
+
+                writer.write({"site": site_name, "category": category, **article})
                 ckpt.mark_url(url)
                 scraped_urls.add(url)
-                continue
+                ckpt.article_count = writer.count
+                new_count += 1
 
-            article = extract_article(art_soup, url, site_cfg)
+                if new_count % CFG["checkpoint_every"] == 0:
+                    ckpt.last_page  = page_num
+                    ckpt.url_index  = url_idx
+                    ckpt.save()
+                    dedup.save()
+                    logger.info(f"  ✦ Checkpoint: {ckpt.article_count} articles (URL {url_idx+1}, page {page_num})")
 
-            if article is None:
-                ckpt.mark_url(url)
-                scraped_urls.add(url)
-                continue
+            ckpt.last_page = page_num
+            ckpt.url_index = url_idx
+            ckpt.save()
+            polite_sleep(delay, jitter=1.0)
 
-            if dedup.is_duplicate(article["title"]):
-                logger.debug(f"  Duplicate title skipped: {article['title'][:60]}")
-                ckpt.mark_url(url)
-                scraped_urls.add(url)
-                continue
-
-            # Write record
-            record = {
-                "site":     site_name,
-                "category": category,
-                **article,
-            }
-            writer.write(record)
-            ckpt.mark_url(url)
-            scraped_urls.add(url)
-            ckpt.article_count = writer.count
-            new_count += 1
-
-            logger.debug(f"  ✔ [{ckpt.article_count}] {article['title'][:70]}")
-
-            # Periodic checkpoint save
-            if new_count % CFG["checkpoint_every"] == 0:
-                ckpt.last_page = page_num
-                ckpt.save()
-                dedup.save()
-                logger.info(
-                    f"  ✦ Checkpoint saved: {ckpt.article_count} articles "
-                    f"({site_name}/{category}, page {page_num})"
-                )
-
-        # Save checkpoint at end of each listing page
-        ckpt.last_page = page_num
+        # Mark this URL as fully done
+        ckpt.url_index = url_idx + 1
+        ckpt.last_page = 1
         ckpt.save()
-        polite_sleep(delay, jitter=1.0)
 
-    # Final save
-    ckpt.save()
     dedup.save()
-    logger.info(
-        f"✔ [{site_name}][{category}] Done. "
-        f"New: {new_count} | Total: {ckpt.article_count}"
-    )
+    logger.info(f"✔ [{site_name}][{category}] Done. New: {new_count} | Total: {ckpt.article_count}")
     return new_count
-
 
 # ─── Full pipeline ────────────────────────────────────────────────────────────
 def run_pipeline(

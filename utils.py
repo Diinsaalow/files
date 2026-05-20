@@ -118,6 +118,14 @@ class Checkpoint:
     @article_count.setter
     def article_count(self, v: int):
         self._data["article_count"] = v
+    
+    @property
+    def url_index(self) -> int:
+        return self._data.get("url_index", 0)
+
+    @url_index.setter
+    def url_index(self, v: int):
+        self._data["url_index"] = v
 
     def delete(self):
         """Remove checkpoint (used after a category is complete)."""
